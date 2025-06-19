@@ -12,14 +12,13 @@ const app = express();
 await connectDB();
 
 // Middleware
-app.use(cors());
-app.use(express.json()); // This must come before clerkMiddleware
+app.use(cors());// This must come before clerkMiddleware
 app.use(clerkMiddleware());
 
 // Routes
 app.get('/', (req, res) => res.send("API WORKING"));
-app.post('/clerk', clerkWebhooks);
-app.use('/api/educator', educatorRouter);
+app.post('/clerk', express.json(),clerkWebhooks);
+app.use('/api/educator',express.json() ,educatorRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
