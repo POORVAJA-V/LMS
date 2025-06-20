@@ -69,28 +69,34 @@ export const stripeWebhooks=async(request,response)=>{
   //HANDLE THE EVENT
   
     switch (event.type) {
-    case 'payment_intent.succeeded':{
-      const paymentIntent = event.data.object;
-      const paymentIntentId=paymentIntent.id;
-      const session=await stripeInstance.checkout.sessions.list({
-        payment_intent:paymentIntentId
-      })
-      const {purchaseId}=session.data[0].metadata;
-      const purchaseData=await Purchase.findById(purchaseId)
-      const userData = await User.findById(purchaseData.userId);
-      const courseData = await Course.findById(purchaseData.courseId.toString())
-    
-      courseData.enrolledStudents.push(userData)
-     await courseData.save()
+    case 'payment_intent.succeeded': {
+    const paymentIntent = event.data.object;
+    const paymentIntentId = paymentIntent.id;
 
-      userData.enrolledCourses.push(courseData._id)
-      await userData.save()
+    const session = await stripeInstance.checkout.sessions.list({
+        payment_intent: paymentIntentId
+    });
 
-      purchaseData.status="completed"
-      await purchaseData.save()
-
-      break;
+    if (session.data.length === 0) {
+        console.error(`No session found for payment intent: ${paymentIntentId}`);
+        return response.status(404).send('Session not found');
     }
+
+    const { purchaseId } = session.data[0].metadata;
+    const purchaseData = await Purchase.findById(purchaseId);
+
+    if (!purchaseData) {
+        console.error(`Purchase not found for ID: ${purchaseId}`);
+        return response.status(404).send('Purchase not found');
+    }
+
+    // Update the purchase status to "completed"
+    purchaseData.status = "completed";
+    await purchaseData.save();
+    console.log(`Payment completed for purchase ID: ${purchaseId}`);
+    break;
+}
+
 
     case 'payment_intent.payment_failed':{
       const paymentIntent = event.data.object;
