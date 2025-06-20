@@ -3,7 +3,6 @@ import { dummyCourses } from "../assets/assets";
 import { useNavigate } from "react-router-dom";
 import humanizeDuration from "humanize-duration";
 import {useAuth,useUser} from "@clerk/clerk-react"
-
 export const AppContext = createContext();
 
 export const AppContextProvider = (props) => {
@@ -73,7 +72,12 @@ const {user}=useUser()
 if(user){
 logToken()
 }
-  },[ user])
+  },[ user]);
+
+
+
+
+  
   const value = {
     currency,
     allCourses,
