@@ -61,18 +61,19 @@ export const stripeWebhooks = async (request, response) => {
 
     try {
         event = Stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        console.log('Event received:', event); // Log the received event
     } catch (err) {
-        response.status(400).send(`Webhook Error: ${err.message}`);
-        return; // Ensure you return after sending a response
+        console.error('Webhook Error:', err.message);
+        return response.status(400).send(`Webhook Error: ${err.message}`);
     }
-   console.log('Received event:', event);
-   
+
     // Handle the event
     switch (event.type) {
         case 'payment_intent.succeeded': {
             const paymentIntent = event.data.object;
             const paymentIntentId = paymentIntent.id;
 
+            // Retrieve the session associated with the payment intent
             const session = await stripeInstance.checkout.sessions.list({
                 payment_intent: paymentIntentId
             });
@@ -82,7 +83,7 @@ export const stripeWebhooks = async (request, response) => {
                 return response.status(404).send('Session not found');
             }
 
-            const { purchaseId } = session.data[0].metadata;
+            const { purchaseId } = session.data[0].metadata; // Ensure this is set correctly
             const purchaseData = await Purchase.findById(purchaseId);
 
             if (!purchaseData) {
@@ -100,13 +101,20 @@ export const stripeWebhooks = async (request, response) => {
         case 'payment_intent.payment_failed': {
             const paymentIntent = event.data.object;
             const paymentIntentId = paymentIntent.id;
+
             const session = await stripeInstance.checkout.sessions.list({
                 payment_intent: paymentIntentId
             });
-            const { purchaseId } = session.data[0].metadata;
-            const purchaseData = await Purchase.findById(purchaseId);
-            purchaseData.status = "failed";
-            await purchaseData.save();
+
+            if (session.data.length > 0) {
+                const { purchaseId } = session.data[0].metadata;
+                const purchaseData = await Purchase.findById(purchaseId);
+                if (purchaseData) {
+                    purchaseData.status = "failed";
+                    await purchaseData.save();
+                    console.log(`Payment failed for purchase ID: ${purchaseId}`);
+                }
+            }
             break;
         }
 
